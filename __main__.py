@@ -10,14 +10,42 @@ import pulumi_aws as aws
 
 # subnet_group = aws.rds.SubnetGroup("rds_subnet_group", subnet_ids=sids)
 
-rds_sg = aws.ec2.SecurityGroup("rdsSG",
-	ingress=[{
+lambda_sg = aws.ec2.SecurityGroup("lambdaSG",
+	egress=[{
 		"protocol": "tcp",
 		"from_port": 3306,
 		"to_port": 3306,
 		"cidr_blocks": ["0.0.0.0/0"]
 	}]
 )
+
+rds_sg = aws.ec2.SecurityGroup("rdsSG")
+aws.ec2.SecurityGroupRule("rdsIngress",
+	type='ingress',
+	security_group_id=rds_sg.id,
+	from_port=3306,
+	to_port=3306,
+	protocol='tcp',
+	source_security_group_id=lambda_sg.id
+)
+aws.ec2.SecurityGroupRule("rdsIngressTotal",
+	type='ingress',
+	security_group_id=rds_sg.id,
+	from_port=0,
+	to_port=65535,
+	protocol='tcp',
+	source_security_group_id=lambda_sg.id
+)
+
+#rds_sg = aws.ec2.SecurityGroup("rdsSG",
+#	ingress=[{
+#		"protocol": "tcp",
+#		"from_port": 3306,
+#		"to_port": 3306,
+#		"cidr_blocks": ["0.0.0.0/0"],
+#		"source_security_group_id": lambda_sg.id
+#	}]
+#)
 
 rds_instance = aws.rds.Instance('mysql',
 	multi_az=False,
@@ -66,17 +94,9 @@ aws.iam.RolePolicyAttachment('rdsFullAccess',
     role=lambda_role.name,
     policy_arn='arn:aws:iam::aws:policy/AmazonRDSFullAccess')
 
-lambda_sg = aws.ec2.SecurityGroup("lambdaSG",
-	egress=[{
-		"protocol": "tcp",
-		"from_port": 3306,
-		"to_port": 3306,
-		"cidr_blocks": ["0.0.0.0/0"]
-	}]
-)
 
 
-migrate_function = aws.lambda_.Function('migrateDB',
+migrate_function = aws.lambda_.Function('dbMigrate',
     runtime="python3.8",
     code=pulumi.FileArchive("./create_db"),
     handler="handler.handler",

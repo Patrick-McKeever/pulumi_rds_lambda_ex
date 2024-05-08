@@ -6,8 +6,11 @@ db_endpoint = os.environ['DB_ENDPOINT']
 db_user = os.environ['DB_USER']
 db_pass = os.environ['DB_PASS']
 db_name = os.environ['DB_NAME']
-conn = pymysql.connect(host=db_endpoint, user=db_user, 
-						passwd=db_pass, db=db_name, 
+
+db_ip = db_endpoint.split(':')[0]
+db_port = int(db_endpoint.split(':')[1])
+conn = pymysql.connect(host=db_ip, user=db_user, port=db_port,
+						passwd=db_pass, db=db_name,
 						connect_timeout=5)
 
 def handler(event, context):
