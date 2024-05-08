@@ -1,6 +1,7 @@
 import pulumi
 import json
 import pulumi_aws as aws
+import pulumi_aws_apigateway as apigateway
 
 #vpc = aws.ec2.Vpc("vpc", cidr_block="10.0.0.0/16")
 #subnets = aws.ec2.get_subnets(filters=[{"name": "vpc-id", "values": [vpc.id]}])
@@ -120,6 +121,38 @@ invoke_lambda = aws.lambda_.Invocation("invokeMyFunction",
     input=json.dumps({"payload": "your-payload"}),  # Change the payload as per your function's requirement
     qualifier=migrate_function.version)
 pulumi.export('lambda_invocation_response', invoke_lambda.result)
+
+# API
+filter_jobs_handler = aws.lambda_.Function('filterJobs',
+    runtime="python3.8",
+    code=pulumi.FileArchive("./filter_jobs"),
+    handler="handler.handler",
+    role=lambda_role.arn,
+    environment=aws.lambda_.FunctionEnvironmentArgs(
+        variables={
+           "DB_ENDPOINT": rds_instance.endpoint,
+           "DB_USER": "mysqladmin",
+           "DB_PASS": "mypassword",
+           "DB_NAME": "mydb"
+        }
+    ),
+	vpc_config=aws.lambda_.FunctionVpcConfigArgs(
+		subnet_ids=snet_group.subnet_ids,
+		security_group_ids=[lambda_sg.id]
+	)
+)
+
+# Create an API Gateway Rest API.
+api = apigateway.RestAPI("api",
+	routes=[
+		apigateway.RouteArgs(path="/get_jobs", 
+							method=apigateway.Method.GET,
+							event_handler=filter_jobs_handler)
+	]
+)
+
+pulumi.export("api_url", api.url)
+
 
 
 ##aws.rds.SubnetGroup("db_subnet", {
