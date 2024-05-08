@@ -16,6 +16,12 @@ conn = pymysql.connect(host=db_ip, user=db_user, port=db_port,
 def handler(event, context):
 	try:
 		event = event['queryStringParameters']
+		if event == None:
+			return {
+				'statusCode': 500,
+				'body': 'No request params offered'
+			}
+
 		with conn.cursor() as cursor:
 			# Construct the SQL query based on the provided parameters
 			sql = "SELECT * FROM jobs WHERE amt_offered >= %s"
